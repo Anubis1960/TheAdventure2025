@@ -259,6 +259,8 @@ public class Engine
         RenderAllObjects();
         
         _renderer.DrawHealthBar(_player.Health, 1000, 10, 10, 200, 20);
+        
+        _renderer.DrawExperienceTracker(_player.Experience, _player.ExperienceToNextLevel, 430, 10, 200, 20);
 
         _renderer.PresentFrame();
     }
@@ -290,7 +292,7 @@ public class Engine
                 {
                     if (enemy.CheckCollision(tempGameObject.Position.X, tempGameObject.Position.Y, explosionRadius))
                     {
-                        enemy.TakeDamage(20);
+                        if (_player != null) enemy.TakeDamage(20 + _player.Damage);
                         if (!enemy.IsAlive)
                         {
                             // Determine gem type and value

@@ -4,6 +4,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using System.Drawing;
 
 namespace TheAdventure;
 
@@ -108,6 +109,26 @@ public unsafe class GameRenderer
         _sdl.SetRenderDrawColor(rendererPtr, 255, 255, 255, 255); // White border
         _sdl.RenderDrawRect(rendererPtr, new Rectangle<int>(x, y, width, height));
     }
+    
+    public void DrawExperienceTracker(int currentExperience, int experienceToNextLevel, int x, int y, int width, int height)
+    {
+        var rendererPtr = _renderer;
+        
+        // Draw the background of the experience tracker
+        _sdl.SetRenderDrawColor(rendererPtr, 0, 0, 0, 255); // Black background
+        _sdl.RenderFillRect(rendererPtr, new Rectangle<int>(x, y, width, height));
+        
+        // Calculate the width of the experience portion
+        var experienceWidth = (int)((double)currentExperience / experienceToNextLevel * width);
+        
+        // Draw the experience portion
+        _sdl.SetRenderDrawColor(rendererPtr, 0, 0, 255, 255); // Blue experience
+        _sdl.RenderFillRect(rendererPtr, new Rectangle<int>(x, y, experienceWidth, height));
+        
+        // Draw the border of the experience tracker
+        _sdl.SetRenderDrawColor(rendererPtr, 255, 255, 255, 255); // White border
+        _sdl.RenderDrawRect(rendererPtr, new Rectangle<int>(x, y, width, height));
+    }
 
     public Vector2D<int> ToWorldCoordinates(int x, int y)
     {
@@ -131,7 +152,6 @@ public unsafe class GameRenderer
     
     public Rectangle<int> GetCameraBounds()
     {
-        // Assuming you have camera position and viewport size stored
         return new Rectangle<int>(
             _camera.X, _camera.Y, 
             _camera.Width, _camera.Height
