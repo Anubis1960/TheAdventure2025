@@ -71,8 +71,10 @@ public class Engine
 
         _renderer.SetWorldBounds(new Rectangle<int>(0, 0, level.Width.Value * level.TileWidth.Value,
             level.Height.Value * level.TileHeight.Value));
-
+        
         _currentLevel = level;
+        
+        SpawnEnemies(10); // Spawns 5 kobolds
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
@@ -99,6 +101,15 @@ public class Engine
         if (isAttacking)
         {
             _player.Attack();
+            CheckPlayerAttackHit();
+        }
+        
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is EnemyObject enemy)
+            {
+                enemy.Update(msSinceLastFrame);
+            }
         }
         
         _scriptEngine.ExecuteAll(this);
@@ -106,6 +117,26 @@ public class Engine
         if (addBomb)
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
+        }
+    }
+
+
+    private void CheckPlayerAttackHit()
+    {
+        if (_player == null) return;
+
+        var attackRange = 50; // Adjust as needed
+        var playerPos = _player.Position;
+
+        foreach (var gameObject in _gameObjects.Values)
+        {
+            if (gameObject is EnemyObject enemy && enemy.IsAlive)
+            {
+                if (enemy.CheckCollision(playerPos.X, playerPos.Y, attackRange))
+                {
+                    enemy.TakeDamage(_player.Damage);
+                }
+            }
         }
     }
 
@@ -133,27 +164,46 @@ public class Engine
             gameObject.Render(_renderer);
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
+                // Check damage to player
+                if (_player != null)
+                {
+                    var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
+                    var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
+                    if (deltaX < 32 && deltaY < 32)
+                    {
+                        _player.TakeDamage(10);
+                    }
+                }
+
+                // Check damage to enemies
+                var explosionRadius = 50; // Adjust as needed
+                foreach (var enemy in _gameObjects.Values.OfType<EnemyObject>())
+                {
+                    if (enemy.CheckCollision(tempGameObject.Position.X, tempGameObject.Position.Y, explosionRadius))
+                    {
+                        enemy.TakeDamage(20); // Bomb damage amount
+                    }
+                }
+
                 toRemove.Add(tempGameObject.Id);
             }
         }
 
         foreach (var id in toRemove)
         {
-            _gameObjects.Remove(id, out var gameObject);
+            _gameObjects.Remove(id);
+        }
 
-            if (_player == null)
-            {
-                continue;
-            }
-
-            var tempGameObject = (TemporaryGameObject)gameObject!;
-            var deltaX = Math.Abs(_player.Position.X - tempGameObject.Position.X);
-            var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
-            if (deltaX < 32 && deltaY < 32)
-            {
-                // _player.GameOver();
-                _player.TakeDamage(10);
-            }
+        // Remove dead enemies
+        var deadEnemies = _gameObjects.Values
+            .OfType<EnemyObject>()
+            .Where(e => !e.IsAlive)
+            .Select(e => e.Id)
+            .ToList();
+            
+        foreach (var id in deadEnemies)
+        {
+            _gameObjects.Remove(id);
         }
 
         _player?.Render(_renderer);
@@ -217,5 +267,31 @@ public class Engine
 
         TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
         _gameObjects.Add(bomb.Id, bomb);
+    }
+    
+    private void SpawnEnemies(int count)
+    {
+        var spriteSheet = SpriteSheet.Load(_renderer, "Kobold.json", "Assets");
+
+        var random = new Random();
+
+        for (int i = 0; i < count; i++)
+        {
+            int tileX = random.Next(0, _currentLevel.Width.Value);
+            int tileY = random.Next(0, _currentLevel.Height.Value);
+
+            int worldX = tileX * 16;
+            int worldY = tileY * 16;
+
+            // Pass a lambda that gets the current player position
+            var enemy = new KoboldWeak(
+                spriteSheet,
+                worldX,
+                worldY,
+                () => _player?.Position ?? (0, 0)
+            );
+
+            _gameObjects.Add(enemy.Id, enemy);
+        }
     }
 }

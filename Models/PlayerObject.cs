@@ -6,7 +6,12 @@ public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
     private const int MaxHealth = 100;
+    
     public int Health { get; private set; } = MaxHealth;
+    
+    public int Damage { get; private set; } = 10;
+    
+    public int Speed { get; private set; } = _speed; // pixels per second
 
     public enum PlayerStateDirection
     {

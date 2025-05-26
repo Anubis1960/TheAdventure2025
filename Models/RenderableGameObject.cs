@@ -23,4 +23,16 @@ public class RenderableGameObject : GameObject
     {
         SpriteSheet.Render(renderer, Position, Angle, RotationCenter);
     }
+    
+    public virtual void Update(double msSinceLastFrame)
+    {
+        // Update animation
+        SpriteSheet.Update(msSinceLastFrame);
+    }
+
+    public virtual void RenderAt(GameRenderer renderer, int x, int y)
+    {
+        // Render at specific position without changing the object's position
+        SpriteSheet.Render(renderer, (x, y), Angle, RotationCenter);
+    }
 }
