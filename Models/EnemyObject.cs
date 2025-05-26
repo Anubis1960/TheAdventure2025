@@ -62,8 +62,9 @@ public class EnemyObject : RenderableGameObject
         base.Update(msSinceLastFrame); // For animations
 
         var playerPos = GetPlayerPosition();
-        playerPos.X -= 15; // Center the player position
-        playerPos.Y -= 22;
+        (int offSetX, int offSetY) = (15, 22);
+        playerPos.X -= offSetX;
+        playerPos.Y -= offSetY;
         float enemyX = _position.X;
         float enemyY = _position.Y;
 
@@ -83,14 +84,11 @@ public class EnemyObject : RenderableGameObject
             if (distance <= 1.0f) // If already very close
             {
                 _position = new Vector2D<float>(playerPos.X, playerPos.Y);
-                Console.WriteLine("Enemy reached player exactly!");
             }
             else
             {
                 _position += new Vector2D<float>((float)(dx * moveAmount), (float)(dy * moveAmount));
             }
-
-            Console.WriteLine($"Enemy moved to ({(int)_position.X}, {(int)_position.Y})");
         }
     }
 
@@ -98,5 +96,30 @@ public class EnemyObject : RenderableGameObject
     {
         // Use integer position for rendering
         base.RenderAt(renderer, (int)_position.X, (int)_position.Y);
+    }
+    
+    public virtual void CheckPlayerCollision(PlayerObject player, double deltaTime)
+    {
+        if (!IsAlive || player.Health <= 0)
+        {
+            return; // No collision if either is dead
+        }
+        
+        (int playerX, int playerY) = player.Position;
+        (int offSetX, int offSetY) = (15, 22);
+        
+        Console.WriteLine($"Enemy position: ({Position.X}, {Position.Y}), Player position: ({playerX - offSetX}, {playerY - offSetY})");
+
+
+        var distanceX = Math.Abs(Position.X - (playerX - offSetX));
+        var distanceY = Math.Abs(Position.Y - (playerY - offSetY));
+
+        // Adjust this threshold based on sprite size
+        const int CollisionThreshold = 32;
+
+        if (distanceX < CollisionThreshold && distanceY < CollisionThreshold)
+        {
+            player.TakeDamage(Damage); // Assumes EnemyObject has a Damage property
+        }
     }
 }

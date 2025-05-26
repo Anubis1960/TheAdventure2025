@@ -21,6 +21,11 @@ public class Engine
     private PlayerObject? _player;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
+    
+    private DateTimeOffset _lastSpawnTime = DateTimeOffset.Now;
+    private readonly Random _random = new();
+    private const double SpawnInterval = 1000; // milliseconds between spawns
+    private const int MaxEnemies = 30;
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -109,8 +114,18 @@ public class Engine
             if (gameObject is EnemyObject enemy)
             {
                 enemy.Update(msSinceLastFrame);
+                enemy.CheckPlayerCollision(_player, msSinceLastFrame);
             }
         }
+        
+        if ((currentTime - _lastSpawnTime).TotalMilliseconds >= SpawnInterval && 
+            _gameObjects.Values.Count(obj => obj is EnemyObject) < MaxEnemies)
+        {
+            SpawnEnemyOutsideView();
+            _lastSpawnTime = currentTime;
+        }
+        
+        _player.Update(msSinceLastFrame);
         
         _scriptEngine.ExecuteAll(this);
 
@@ -118,6 +133,62 @@ public class Engine
         {
             AddBomb(_player.Position.X, _player.Position.Y, false);
         }
+    }
+    
+    private void SpawnEnemyOutsideView()
+    {
+        if (_player == null) return;
+
+        var spriteSheet = SpriteSheet.Load(_renderer, "Kobold.json", "Assets");
+    
+        // Get camera/view bounds
+        var cameraBounds = _renderer.GetCameraBounds();
+        var padding = 100; // padding to ensure enemy spawns well outside view
+    
+        // Possible spawn areas (left, right, top, bottom of screen)
+        var spawnAreas = new List<Rectangle<int>>()
+        {
+            new Rectangle<int>(
+                cameraBounds.Origin.X - 200 - padding, 
+                cameraBounds.Origin.Y, 
+                200, 
+                cameraBounds.Size.Y), // Left
+            new Rectangle<int>(
+                cameraBounds.Origin.X + cameraBounds.Size.X + padding, 
+                cameraBounds.Origin.Y, 
+                200, 
+                cameraBounds.Size.Y), // Right
+            new Rectangle<int>(
+                cameraBounds.Origin.X, 
+                cameraBounds.Origin.Y - 200 - padding, 
+                cameraBounds.Size.X, 
+                200), // Top
+            new Rectangle<int>(
+                cameraBounds.Origin.X, 
+                cameraBounds.Origin.Y + cameraBounds.Size.Y + padding, 
+                cameraBounds.Size.X, 
+                200) // Bottom
+        };
+    
+        // Pick a random spawn area
+        var spawnArea = spawnAreas[_random.Next(spawnAreas.Count)];
+    
+        // Random position within the spawn area
+        int x = _random.Next(spawnArea.Origin.X, spawnArea.Origin.X + spawnArea.Size.X);
+        int y = _random.Next(spawnArea.Origin.Y, spawnArea.Origin.Y + spawnArea.Size.Y);
+    
+        // Ensure position is within level bounds
+        x = Math.Clamp(x, 0, _currentLevel.Width.Value * _currentLevel.TileWidth.Value);
+        y = Math.Clamp(y, 0, _currentLevel.Height.Value * _currentLevel.TileHeight.Value);
+    
+        var enemy = new Kobold(
+            spriteSheet,
+            x,
+            y,
+            () => _player?.Position ?? (0, 0)
+        );
+    
+        _gameObjects.Add(enemy.Id, enemy);
     }
 
 
@@ -151,7 +222,7 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
         
-        _renderer.DrawHealthBar(_player.Health, 100, 10, 10, 200, 20);
+        _renderer.DrawHealthBar(_player.Health, 1000, 10, 10, 200, 20);
 
         _renderer.PresentFrame();
     }
@@ -280,11 +351,11 @@ public class Engine
             int tileX = random.Next(0, _currentLevel.Width.Value);
             int tileY = random.Next(0, _currentLevel.Height.Value);
 
-            int worldX = tileX * 16;
-            int worldY = tileY * 16;
+            int worldX = tileX * 32;
+            int worldY = tileY * 32;
 
             // Pass a lambda that gets the current player position
-            var enemy = new KoboldWeak(
+            var enemy = new Kobold(
                 spriteSheet,
                 worldX,
                 worldY,

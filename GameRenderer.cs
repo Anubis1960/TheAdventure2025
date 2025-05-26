@@ -128,4 +128,13 @@ public unsafe class GameRenderer
     {
         _sdl.RenderPresent(_renderer);
     }
+    
+    public Rectangle<int> GetCameraBounds()
+    {
+        // Assuming you have camera position and viewport size stored
+        return new Rectangle<int>(
+            _camera.X, _camera.Y, 
+            _camera.Width, _camera.Height
+        );
+    }
 }

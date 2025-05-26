@@ -5,13 +5,18 @@ namespace TheAdventure.Models;
 public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
-    private const int MaxHealth = 100;
+    private const int MaxHealth = 1000;
     
     public int Health { get; private set; } = MaxHealth;
     
     public int Damage { get; private set; } = 10;
     
     public int Speed { get; private set; } = _speed; // pixels per second
+    
+    private double _invincibilityTimer = 0;
+    private const double InvincibilityDuration = 0.5; // seconds
+
+    public bool IsInvincible => _invincibilityTimer > 0;
 
     public enum PlayerStateDirection
     {
@@ -91,11 +96,23 @@ public class PlayerObject : RenderableGameObject
     
     public void TakeDamage(int amount)
     {
+        if (IsInvincible) return;
+
         Health -= amount;
+        _invincibilityTimer = InvincibilityDuration;
+    }
+    
+    public void Update(double deltaTimeInSeconds)
+    {
         if (Health <= 0)
         {
-            Health = 0;
             GameOver();
+            return;
+        }
+        if (_invincibilityTimer > 0)
+        {
+            _invincibilityTimer -= deltaTimeInSeconds;
+            if (_invincibilityTimer < 0) _invincibilityTimer = 0;
         }
     }
 
