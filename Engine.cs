@@ -119,6 +119,8 @@ public class Engine
 
         RenderTerrain();
         RenderAllObjects();
+        
+        _renderer.DrawHealthBar(_player.Health, 100, 10, 10, 200, 20);
 
         _renderer.PresentFrame();
     }
@@ -149,7 +151,8 @@ public class Engine
             var deltaY = Math.Abs(_player.Position.Y - tempGameObject.Position.Y);
             if (deltaX < 32 && deltaY < 32)
             {
-                _player.GameOver();
+                // _player.GameOver();
+                _player.TakeDamage(10);
             }
         }
 

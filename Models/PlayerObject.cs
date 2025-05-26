@@ -5,6 +5,8 @@ namespace TheAdventure.Models;
 public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
+    private const int MaxHealth = 100;
+    public int Health { get; private set; } = MaxHealth;
 
     public enum PlayerStateDirection
     {
@@ -80,6 +82,16 @@ public class PlayerObject : RenderableGameObject
 
         var direction = State.Direction;
         SetState(PlayerState.Attack, direction);
+    }
+    
+    public void TakeDamage(int amount)
+    {
+        Health -= amount;
+        if (Health <= 0)
+        {
+            Health = 0;
+            GameOver();
+        }
     }
 
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)

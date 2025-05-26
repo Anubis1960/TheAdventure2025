@@ -90,6 +90,24 @@ public unsafe class GameRenderer
                 in center, flip);
         }
     }
+    
+    public void DrawHealthBar(int currentHealth, int maxHealth, int x, int y, int width, int height)
+    {
+        var rendererPtr = _renderer;
+        
+        // Draw the background of the health bar
+        _sdl.SetRenderDrawColor(rendererPtr, 0, 0, 0, 255); // Black background
+        _sdl.RenderFillRect(rendererPtr, new Rectangle<int>(x, y, width, height));
+        // Calculate the width of the health portion
+        var healthWidth = (int)((double)currentHealth / maxHealth * width);
+        // Draw the health portion
+        _sdl.SetRenderDrawColor(rendererPtr, 0, 255, 0, 255); // Green health
+        _sdl.RenderFillRect(rendererPtr, new Rectangle<int>(x, y, healthWidth, height));
+        
+        // Draw the border of the health bar
+        _sdl.SetRenderDrawColor(rendererPtr, 255, 255, 255, 255); // White border
+        _sdl.RenderDrawRect(rendererPtr, new Rectangle<int>(x, y, width, height));
+    }
 
     public Vector2D<int> ToWorldCoordinates(int x, int y)
     {
