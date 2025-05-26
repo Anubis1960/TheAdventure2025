@@ -5,9 +5,15 @@ namespace TheAdventure.Models;
 public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
-    private const int MaxHealth = 1000;
+    public int MaxHealth = 1000;
     
-    public int Health { get; private set; } = MaxHealth;
+    public int Experience { get; private set; } = 0;
+    
+    public int Level { get; private set; } = 1;
+    
+    public int ExperienceToNextLevel { get; private set; } = 1000; // Starting experience to next level
+    
+    public int Health { get; private set; } = 1000; // Starting health
     
     public int Damage { get; private set; } = 10;
     
@@ -179,5 +185,30 @@ public class PlayerObject : RenderableGameObject
         }
 
         Position = (x, y);
+    }
+
+    public void Heal(int value)
+    {
+        Health += value;
+        if (Health > MaxHealth)
+        {
+            Health = MaxHealth;
+        }
+    }
+
+    public void GainExperience(int value)
+    {
+        Experience += value;
+
+        // Example level-up logic
+        while (Experience >= ExperienceToNextLevel)
+        {
+            Level++;
+            Experience -= ExperienceToNextLevel;
+            ExperienceToNextLevel = (int)(ExperienceToNextLevel * 1.5); // Increase requirement
+            MaxHealth += 20;
+            Health = MaxHealth;
+            Damage += 5;
+        }
     }
 }

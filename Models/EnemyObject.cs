@@ -33,7 +33,7 @@ public class EnemyObject : RenderableGameObject
         Speed = speed;
     }
 
-    public void TakeDamage(int amount)
+    public virtual void TakeDamage(int amount)
     {
         Health -= amount;
         if (Health <= 0)
@@ -42,7 +42,7 @@ public class EnemyObject : RenderableGameObject
         }
     }
 
-    protected virtual void Die()
+    protected virtual void Die(GameRenderer renderer = null)
     {
         // Optionally do something when enemy dies (e.g., drop item, play sound)
         Health = 0;

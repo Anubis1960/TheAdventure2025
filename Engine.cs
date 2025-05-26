@@ -4,6 +4,7 @@ using Silk.NET.Maths;
 using TheAdventure.Models;
 using TheAdventure.Models.Data;
 using TheAdventure.Scripting;
+using GemObject = TheAdventure.Models.GemObject;
 
 namespace TheAdventure;
 
@@ -78,8 +79,6 @@ public class Engine
             level.Height.Value * level.TileHeight.Value));
         
         _currentLevel = level;
-        
-        SpawnEnemies(10); // Spawns 5 kobolds
 
         _scriptEngine.LoadAll(Path.Combine("Assets", "Scripts"));
     }
@@ -115,6 +114,11 @@ public class Engine
             {
                 enemy.Update(msSinceLastFrame);
                 enemy.CheckPlayerCollision(_player, msSinceLastFrame);
+            }
+
+            if (gameObject is GemObject gem)
+            {
+                gem.checkPlayerCollision(_player, msSinceLastFrame);
             }
         }
         
@@ -340,29 +344,4 @@ public class Engine
         _gameObjects.Add(bomb.Id, bomb);
     }
     
-    private void SpawnEnemies(int count)
-    {
-        var spriteSheet = SpriteSheet.Load(_renderer, "Kobold.json", "Assets");
-
-        var random = new Random();
-
-        for (int i = 0; i < count; i++)
-        {
-            int tileX = random.Next(0, _currentLevel.Width.Value);
-            int tileY = random.Next(0, _currentLevel.Height.Value);
-
-            int worldX = tileX * 32;
-            int worldY = tileY * 32;
-
-            // Pass a lambda that gets the current player position
-            var enemy = new Kobold(
-                spriteSheet,
-                worldX,
-                worldY,
-                () => _player?.Position ?? (0, 0)
-            );
-
-            _gameObjects.Add(enemy.Id, enemy);
-        }
-    }
 }
