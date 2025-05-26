@@ -118,7 +118,11 @@ public class Engine
 
             if (gameObject is GemObject gem)
             {
-                gem.checkPlayerCollision(_player, msSinceLastFrame);
+                bool expired = gem.CheckPlayerCollision(_player, msSinceLastFrame);
+                if (expired)
+                {
+                    _gameObjects.Remove(gem.Id);
+                }
             }
         }
         
@@ -202,16 +206,44 @@ public class Engine
 
         var attackRange = 50; // Adjust as needed
         var playerPos = _player.Position;
+        
+        var gemsToAdd = new List<GemObject>();
 
-        foreach (var gameObject in _gameObjects.Values)
+        foreach (var gameObject in _gameObjects.Values.ToList())
         {
             if (gameObject is EnemyObject enemy && enemy.IsAlive)
             {
                 if (enemy.CheckCollision(playerPos.X, playerPos.Y, attackRange))
                 {
                     enemy.TakeDamage(_player.Damage);
+                    Console.WriteLine($"Enemy {enemy.Id} hit by player attack. Remaining health: {enemy.Health}");
+                    if (!enemy.IsAlive)
+                    {
+                        GemType gemType = (GemType)_random.Next(0, Enum.GetValues(typeof(GemType)).Length);
+                        int value = _random.Next(50, 100); // Random amount of gems
+                        if (gemType == GemType.Health)
+                        {
+                            var gem = new GemObject(
+                                SpriteSheet.Load(_renderer, "HealthGem.json", "Assets"),
+                                (enemy.Position.X, enemy.Position.Y), gemType, value);
+                            gemsToAdd.Add(gem); // Add to temporary list
+                        }
+                        else if (gemType == GemType.Experience)
+                        {
+                            var gem = new GemObject(
+                                SpriteSheet.Load(_renderer, "ExperienceGem.json", "Assets"),
+                                (enemy.Position.X, enemy.Position.Y), gemType, value);
+                            gemsToAdd.Add(gem);
+                        }
+                    }
                 }
             }
+        }
+        
+        // Add gems to the game objects
+        foreach (var gem in gemsToAdd)
+        {
+            _gameObjects.Add(gem.Id, gem);
         }
     }
 
@@ -234,9 +266,11 @@ public class Engine
     public void RenderAllObjects()
     {
         var toRemove = new List<int>();
+        var gemsToAdd = new List<GemObject>();
         foreach (var gameObject in GetRenderables())
         {
             gameObject.Render(_renderer);
+
             if (gameObject is TemporaryGameObject { IsExpired: true } tempGameObject)
             {
                 // Check damage to player
@@ -251,17 +285,41 @@ public class Engine
                 }
 
                 // Check damage to enemies
-                var explosionRadius = 50; // Adjust as needed
-                foreach (var enemy in _gameObjects.Values.OfType<EnemyObject>())
+                var explosionRadius = 50;
+                foreach (var enemy in _gameObjects.Values.OfType<EnemyObject>().ToList()) // Use .ToList() to avoid modification during iteration
                 {
                     if (enemy.CheckCollision(tempGameObject.Position.X, tempGameObject.Position.Y, explosionRadius))
                     {
-                        enemy.TakeDamage(20); // Bomb damage amount
+                        enemy.TakeDamage(20);
+                        if (!enemy.IsAlive)
+                        {
+                            // Determine gem type and value
+                            GemType gemType = (GemType)_random.Next(0, Enum.GetValues(typeof(GemType)).Length);
+                            int value = _random.Next(50, 100);
+
+                            string gemFile = gemType == GemType.Health ? "HealthGem.json" : "ExperienceGem.json";
+                            var spriteSheet = SpriteSheet.Load(_renderer, gemFile, "Assets");
+
+                            var gem = new GemObject(
+                                spriteSheet,
+                                (tempGameObject.Position.X, tempGameObject.Position.Y),
+                                gemType,
+                                value
+                            );
+
+                            gemsToAdd.Add(gem); // Add to temporary list
+                        }
                     }
                 }
 
                 toRemove.Add(tempGameObject.Id);
             }
+        }
+        
+        // Add gems to the game objects
+        foreach (var gem in gemsToAdd)
+        {
+            _gameObjects.Add(gem.Id, gem);
         }
 
         foreach (var id in toRemove)

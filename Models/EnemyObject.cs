@@ -8,7 +8,7 @@ public class EnemyObject : RenderableGameObject
     public int MaxHealth { get; protected set; }
     public int Damage { get; protected set; }
     
-    public bool IsAlive => Health > 0;
+    public bool IsAlive { get; protected set; } = true;
     
     public int Speed { get; protected set; } = 128; // pixels per second
     
@@ -38,6 +38,7 @@ public class EnemyObject : RenderableGameObject
         Health -= amount;
         if (Health <= 0)
         {
+            IsAlive = false;
             Die();
         }
     }
@@ -107,9 +108,6 @@ public class EnemyObject : RenderableGameObject
         
         (int playerX, int playerY) = player.Position;
         (int offSetX, int offSetY) = (15, 22);
-        
-        Console.WriteLine($"Enemy position: ({Position.X}, {Position.Y}), Player position: ({playerX - offSetX}, {playerY - offSetY})");
-
 
         var distanceX = Math.Abs(Position.X - (playerX - offSetX));
         var distanceY = Math.Abs(Position.Y - (playerY - offSetY));

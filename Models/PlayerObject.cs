@@ -205,7 +205,7 @@ public class PlayerObject : RenderableGameObject
         {
             Level++;
             Experience -= ExperienceToNextLevel;
-            ExperienceToNextLevel = (int)(ExperienceToNextLevel * 1.5); // Increase requirement
+            ExperienceToNextLevel = (int)(ExperienceToNextLevel * Level); // Increase requirement
             MaxHealth += 20;
             Health = MaxHealth;
             Damage += 5;
