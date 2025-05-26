@@ -7,20 +7,24 @@ public class PlayerObject : RenderableGameObject
     private const int _speed = 128; // pixels per second
     public int MaxHealth = 1000;
     
-    public int Experience { get; private set; } = 0;
+    public int Experience { get;  set; } = 0;
     
-    public int Level { get; private set; } = 1;
+    public int Level { get;  set; } = 1;
     
-    public int ExperienceToNextLevel { get; private set; } = 1000; // Starting experience to next level
+    public int ExperienceToNextLevel { get;  set; } = 1000; // Starting experience to next level
     
-    public int Health { get; private set; } = 1000; // Starting health
+    public int Health { get;  set; } = 1000; // Starting health
     
-    public int Damage { get; private set; } = 10;
+    public int Damage { get;  set; } = 10;
     
-    public int Speed { get; private set; } = _speed; // pixels per second
+    public int Speed { get;  set; } = _speed; // pixels per second
     
     private double _invincibilityTimer = 0;
     private const double InvincibilityDuration = 0.5; // seconds
+
+    private UpgradeMenu _upgradeMenu;
+
+    public UpgradeMenu UpgradeMenu => _upgradeMenu;
 
     public bool IsInvincible => _invincibilityTimer > 0;
 
@@ -44,8 +48,9 @@ public class PlayerObject : RenderableGameObject
 
     public (PlayerState State, PlayerStateDirection Direction) State { get; private set; }
 
-    public PlayerObject(SpriteSheet spriteSheet, int x, int y) : base(spriteSheet, (x, y))
+    public PlayerObject(SpriteSheet spriteSheet, int x, int y, GameRenderer renderer) : base(spriteSheet, (x, y))
     {
+        _upgradeMenu = new UpgradeMenu(renderer);
         SetState(PlayerState.Idle, PlayerStateDirection.Down);
     }
 
@@ -198,17 +203,19 @@ public class PlayerObject : RenderableGameObject
 
     public void GainExperience(int value)
     {
+        if (State.State == PlayerState.GameOver) return;
+
         Experience += value;
 
-        // Example level-up logic
+        // Check for level up
         while (Experience >= ExperienceToNextLevel)
         {
             Level++;
             Experience -= ExperienceToNextLevel;
-            ExperienceToNextLevel = (int)(ExperienceToNextLevel * Level); // Increase requirement
-            MaxHealth += 20;
-            Health = MaxHealth;
-            Damage += 5;
+            ExperienceToNextLevel = (int)(ExperienceToNextLevel * 1.5); // Scale requirement
+        
+            // Show upgrade menu
+            _upgradeMenu.Show();
         }
     }
 }

@@ -1,0 +1,22 @@
+﻿{
+  "FileName": "giant.png",
+  "FrameWidth": 32,
+  "FrameHeight": 32,
+  "RowCount": 1,
+  "ColumnCount": 2,
+  "animations": {
+    "Idle": {
+      "StartFrame": { "Row": 0, "Col": 0 },
+      "EndFrame": { "Row": 0, "Col": 1 },
+      "DurationMs": 1000,
+      "Loop": true
+    },
+    "Walk": {
+      "StartFrame": { "Row": 0, "Col": 0 },
+      "EndFrame": { "Row": 0, "Col": 1 },
+      "DurationMs": 500,
+      "Loop": true
+    }
+  },
+  "DefaultAnimation": "Idle"
+}

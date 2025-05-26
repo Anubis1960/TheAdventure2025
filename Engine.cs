@@ -20,6 +20,9 @@ public class Engine
 
     private Level _currentLevel = new();
     private PlayerObject? _player;
+    
+    private const double GiantSpawnInterval = 120000; // 2 minutes in milliseconds
+    private DateTimeOffset _lastGiantSpawnTime = DateTimeOffset.Now;
 
     private DateTimeOffset _lastUpdate = DateTimeOffset.Now;
     
@@ -27,6 +30,10 @@ public class Engine
     private readonly Random _random = new();
     private const double SpawnInterval = 1000; // milliseconds between spawns
     private const int MaxEnemies = 30;
+    private bool _isPaused = false;
+    
+    private float _upgradeSelectTimer;
+    private const float UpgradeSelectCooldown = 0.3f; // seconds
 
     public Engine(GameRenderer renderer, Input input)
     {
@@ -38,7 +45,7 @@ public class Engine
 
     public void SetupWorld()
     {
-        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100);
+        _player = new(SpriteSheet.Load(_renderer, "Player.json", "Assets"), 100, 100, _renderer);
 
         var levelContent = File.ReadAllText(Path.Combine("Assets", "terrain.tmj"));
         var level = JsonSerializer.Deserialize<Level>(levelContent);
@@ -89,11 +96,16 @@ public class Engine
         var msSinceLastFrame = (currentTime - _lastUpdate).TotalMilliseconds;
         _lastUpdate = currentTime;
 
-        if (_player == null)
+        if (_player == null) return;
+
+        // Handle upgrade menu input
+        if (_player.UpgradeMenu.IsVisible)
         {
-            return;
+            HandleUpgradeMenuInput((float)msSinceLastFrame / 1000f);
+            return; // Skip rest of frame processing while menu is open
         }
 
+        // Normal game input handling
         double up = _input.IsUpPressed() ? 1.0 : 0.0;
         double down = _input.IsDownPressed() ? 1.0 : 0.0;
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
@@ -102,39 +114,49 @@ public class Engine
         bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
+        
         if (isAttacking)
         {
             _player.Attack();
             CheckPlayerAttackHit();
         }
-        
-        foreach (var gameObject in _gameObjects.Values)
-        {
-            if (gameObject is EnemyObject enemy)
-            {
-                enemy.Update(msSinceLastFrame);
-                enemy.CheckPlayerCollision(_player, msSinceLastFrame);
-            }
 
-            if (gameObject is GemObject gem)
+        // Update game objects only if not paused
+        if (!_isPaused)
+        {
+            foreach (var gameObject in _gameObjects.Values)
             {
-                bool expired = gem.CheckPlayerCollision(_player, msSinceLastFrame);
-                if (expired)
+                if (gameObject is EnemyObject enemy)
                 {
-                    _gameObjects.Remove(gem.Id);
+                    enemy.Update(msSinceLastFrame);
+                    enemy.CheckPlayerCollision(_player, msSinceLastFrame);
+                }
+
+                if (gameObject is GemObject gem)
+                {
+                    bool expired = gem.CheckPlayerCollision(_player, msSinceLastFrame);
+                    if (expired)
+                    {
+                        _gameObjects.Remove(gem.Id);
+                    }
                 }
             }
+
+            if ((currentTime - _lastSpawnTime).TotalMilliseconds >= SpawnInterval && 
+                _gameObjects.Values.Count(obj => obj is EnemyObject) < MaxEnemies)
+            {
+                SpawnEnemyOutsideView("Kobold.json");
+                _lastSpawnTime = currentTime;
+            }
+            
+            if ((currentTime - _lastGiantSpawnTime).TotalMilliseconds >= GiantSpawnInterval)
+            {
+                SpawnEnemyOutsideView("Giant.json");
+                _lastGiantSpawnTime = currentTime;
+            }
         }
-        
-        if ((currentTime - _lastSpawnTime).TotalMilliseconds >= SpawnInterval && 
-            _gameObjects.Values.Count(obj => obj is EnemyObject) < MaxEnemies)
-        {
-            SpawnEnemyOutsideView();
-            _lastSpawnTime = currentTime;
-        }
-        
+
         _player.Update(msSinceLastFrame);
-        
         _scriptEngine.ExecuteAll(this);
 
         if (addBomb)
@@ -143,11 +165,40 @@ public class Engine
         }
     }
     
-    private void SpawnEnemyOutsideView()
+    private void HandleUpgradeMenuInput(float deltaTime)
+    {
+        _upgradeSelectTimer += deltaTime;
+
+        if (_input.IsKeySPressed())
+        {
+            if (_upgradeSelectTimer >= UpgradeSelectCooldown)
+            {
+                _player.UpgradeMenu.SelectNextUpgrade();
+                _upgradeSelectTimer = 0f;
+            }
+        }
+        else if (_input.IsKeyWPressed())
+        {
+            if (_upgradeSelectTimer >= UpgradeSelectCooldown)
+            {
+                _player.UpgradeMenu.SelectPreviousUpgrade();
+                _upgradeSelectTimer = 0f;
+            }
+        }
+
+        // Handle upgrade selection
+        if (_input.IsKeyEnterPressed())
+        {
+            _player.UpgradeMenu.ApplySelectedUpgrade(_player);
+            _isPaused = false;
+        }
+    }
+    
+    private void SpawnEnemyOutsideView(String fileName)
     {
         if (_player == null) return;
 
-        var spriteSheet = SpriteSheet.Load(_renderer, "Kobold.json", "Assets");
+        var spriteSheet = SpriteSheet.Load(_renderer, fileName, "Assets");
     
         // Get camera/view bounds
         var cameraBounds = _renderer.GetCameraBounds();
@@ -232,7 +283,7 @@ public class Engine
                         {
                             var gem = new GemObject(
                                 SpriteSheet.Load(_renderer, "ExperienceGem.json", "Assets"),
-                                (enemy.Position.X, enemy.Position.Y), gemType, value);
+                                (enemy.Position.X, enemy.Position.Y), gemType, 1000);
                             gemsToAdd.Add(gem);
                         }
                     }
@@ -258,9 +309,15 @@ public class Engine
         RenderTerrain();
         RenderAllObjects();
         
-        _renderer.DrawHealthBar(_player.Health, 1000, 10, 10, 200, 20);
-        
-        _renderer.DrawExperienceTracker(_player.Experience, _player.ExperienceToNextLevel, 430, 10, 200, 20);
+        _renderer.DrawHealthBar(_player.Health, _player.MaxHealth, 10, 10, 200, 20);
+        _renderer.DrawExperienceTracker(_player.Level,_player.Experience, _player.ExperienceToNextLevel, 430, 10, 200, 20);
+
+        // Render upgrade menu if visible
+        if (_player.UpgradeMenu.IsVisible)
+        {
+            var windowSize = _renderer.GetCameraBounds().Size;
+            _renderer.RenderUpgradeMenu(_player.UpgradeMenu, windowSize.X, windowSize.Y);
+        }
 
         _renderer.PresentFrame();
     }
@@ -306,7 +363,7 @@ public class Engine
                                 spriteSheet,
                                 (tempGameObject.Position.X, tempGameObject.Position.Y),
                                 gemType,
-                                value
+                                1000
                             );
 
                             gemsToAdd.Add(gem); // Add to temporary list
