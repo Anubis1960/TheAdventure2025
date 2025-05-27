@@ -44,7 +44,7 @@ public class UpgradeMenu
             new(ItemType.BombCapacityUp, "Extra Pouches", "Place +1 extra bomb", "Assets/upgrade_bomb.png", 1)
             {
                 TextureId = renderer.LoadTexture("Assets/upgrade_bomb.png", out _),
-                MaxCount = 5
+                MaxCount = -1
             },
             // XP Boost
             new(ItemType.ExperienceGainBoost, "Lapis", "Blue gems get you more xp", "Assets/exp_gem.png", 20)
