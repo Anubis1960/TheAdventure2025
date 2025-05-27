@@ -4,6 +4,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using TheAdventure.Models;
 using Point = Silk.NET.SDL.Point;
+using System.Drawing;
 
 namespace TheAdventure;
 
@@ -90,6 +91,44 @@ public unsafe class GameRenderer
                 in center, flip);
         }
     }
+    
+    public void DrawHealthBar(int currentHealth, int maxHealth, int x, int y, int width, int height)
+    {
+        var rendererPtr = _renderer;
+        
+        // Draw the background of the health bar
+        _sdl.SetRenderDrawColor(rendererPtr, 0, 0, 0, 255); // Black background
+        _sdl.RenderFillRect(rendererPtr, new Rectangle<int>(x, y, width, height));
+        // Calculate the width of the health portion
+        var healthWidth = (int)((double)currentHealth / maxHealth * width);
+        // Draw the health portion
+        _sdl.SetRenderDrawColor(rendererPtr, 0, 255, 0, 255); // Green health
+        _sdl.RenderFillRect(rendererPtr, new Rectangle<int>(x, y, healthWidth, height));
+        
+        // Draw the border of the health bar
+        _sdl.SetRenderDrawColor(rendererPtr, 255, 255, 255, 255); // White border
+        _sdl.RenderDrawRect(rendererPtr, new Rectangle<int>(x, y, width, height));
+    }
+    
+    public void DrawExperienceTracker(int currentExperience, int experienceToNextLevel, int x, int y, int width, int height)
+    {
+        var rendererPtr = _renderer;
+        
+        // Draw the background of the experience tracker
+        _sdl.SetRenderDrawColor(rendererPtr, 0, 0, 0, 255); // Black background
+        _sdl.RenderFillRect(rendererPtr, new Rectangle<int>(x, y, width, height));
+        
+        // Calculate the width of the experience portion
+        var experienceWidth = (int)((double)currentExperience / experienceToNextLevel * width);
+        
+        // Draw the experience portion
+        _sdl.SetRenderDrawColor(rendererPtr, 0, 0, 255, 255); // Blue experience
+        _sdl.RenderFillRect(rendererPtr, new Rectangle<int>(x, y, experienceWidth, height));
+        
+        // Draw the border of the experience tracker
+        _sdl.SetRenderDrawColor(rendererPtr, 255, 255, 255, 255); // White border
+        _sdl.RenderDrawRect(rendererPtr, new Rectangle<int>(x, y, width, height));
+    }
 
     public Vector2D<int> ToWorldCoordinates(int x, int y)
     {
@@ -109,5 +148,13 @@ public unsafe class GameRenderer
     public void PresentFrame()
     {
         _sdl.RenderPresent(_renderer);
+    }
+    
+    public Rectangle<int> GetCameraBounds()
+    {
+        return new Rectangle<int>(
+            _camera.X, _camera.Y, 
+            _camera.Width, _camera.Height
+        );
     }
 }

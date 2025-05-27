@@ -5,6 +5,24 @@ namespace TheAdventure.Models;
 public class PlayerObject : RenderableGameObject
 {
     private const int _speed = 128; // pixels per second
+    public int MaxHealth = 1000;
+    
+    public int Experience { get; private set; } = 0;
+    
+    public int Level { get; private set; } = 1;
+    
+    public int ExperienceToNextLevel { get; private set; } = 1000; // Starting experience to next level
+    
+    public int Health { get; private set; } = 1000; // Starting health
+    
+    public int Damage { get; private set; } = 10;
+    
+    public int Speed { get; private set; } = _speed; // pixels per second
+    
+    private double _invincibilityTimer = 0;
+    private const double InvincibilityDuration = 0.5; // seconds
+
+    public bool IsInvincible => _invincibilityTimer > 0;
 
     public enum PlayerStateDirection
     {
@@ -81,6 +99,28 @@ public class PlayerObject : RenderableGameObject
         var direction = State.Direction;
         SetState(PlayerState.Attack, direction);
     }
+    
+    public void TakeDamage(int amount)
+    {
+        if (IsInvincible) return;
+
+        Health -= amount;
+        _invincibilityTimer = InvincibilityDuration;
+    }
+    
+    public void Update(double deltaTimeInSeconds)
+    {
+        if (Health <= 0)
+        {
+            GameOver();
+            return;
+        }
+        if (_invincibilityTimer > 0)
+        {
+            _invincibilityTimer -= deltaTimeInSeconds;
+            if (_invincibilityTimer < 0) _invincibilityTimer = 0;
+        }
+    }
 
     public void UpdatePosition(double up, double down, double left, double right, int width, int height, double time)
     {
@@ -145,5 +185,30 @@ public class PlayerObject : RenderableGameObject
         }
 
         Position = (x, y);
+    }
+
+    public void Heal(int value)
+    {
+        Health += value;
+        if (Health > MaxHealth)
+        {
+            Health = MaxHealth;
+        }
+    }
+
+    public void GainExperience(int value)
+    {
+        Experience += value;
+
+        // Example level-up logic
+        while (Experience >= ExperienceToNextLevel)
+        {
+            Level++;
+            Experience -= ExperienceToNextLevel;
+            ExperienceToNextLevel = (int)(ExperienceToNextLevel * Level); // Increase requirement
+            MaxHealth += 20;
+            Health = MaxHealth;
+            Damage += 5;
+        }
     }
 }

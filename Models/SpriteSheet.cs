@@ -135,4 +135,24 @@ public class SpriteSheet
                 ActiveAnimation.Flip, angle, rotationCenter);
         }
     }
+    
+    public void Update(double msSinceLastFrame)
+    {
+        if (ActiveAnimation != null && !AnimationFinished)
+        {
+            var totalFrames = (ActiveAnimation.EndFrame.Row - ActiveAnimation.StartFrame.Row) * ColumnCount +
+                ActiveAnimation.EndFrame.Col - ActiveAnimation.StartFrame.Col;
+            var currentFrame = (int)((DateTimeOffset.Now - _animationStart).TotalMilliseconds /
+                                     (ActiveAnimation.DurationMs / (double)totalFrames));
+            if (currentFrame > totalFrames)
+            {
+                AnimationFinished = true;
+                
+                if (ActiveAnimation.Loop)
+                {
+                    _animationStart = DateTimeOffset.Now;
+                }
+            }
+        }
+    }
 }
