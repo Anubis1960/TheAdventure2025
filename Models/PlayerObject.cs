@@ -4,14 +4,18 @@ namespace TheAdventure.Models;
 
 public class PlayerObject : RenderableGameObject
 {
-    private const int _speed = 128; // pixels per second
+    private const int _speed = 200; // pixels per second
     public int MaxHealth = 1000;
     
     public int Experience { get;  set; } = 0;
     
+    public double ExperienceMultiplier { get; set; } = 1.0; // Multiplier for experience gain
+    
+    public double HealthMultiplier { get; set; } = 1.0; // Multiplier for health gain
+    
     public int Level { get;  set; } = 1;
     
-    public int ExperienceToNextLevel { get;  set; } = 1000; // Starting experience to next level
+    public int ExperienceToNextLevel { get;  set; } = 100; // Starting experience to next level
     
     public int Health { get;  set; } = 1000; // Starting health
     
@@ -25,6 +29,8 @@ public class PlayerObject : RenderableGameObject
     private UpgradeMenu _upgradeMenu;
 
     public UpgradeMenu UpgradeMenu => _upgradeMenu;
+    
+    public int ExtraBombCount { get; set; } = 0;
 
     public bool IsInvincible => _invincibilityTimer > 0;
 

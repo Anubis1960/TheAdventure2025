@@ -111,7 +111,6 @@ public class Engine
         double left = _input.IsLeftPressed() ? 1.0 : 0.0;
         double right = _input.IsRightPressed() ? 1.0 : 0.0;
         bool isAttacking = _input.IsKeyAPressed() && (up + down + left + right <= 1);
-        bool addBomb = _input.IsKeyBPressed();
 
         _player.UpdatePosition(up, down, left, right, 48, 48, msSinceLastFrame);
         
@@ -145,24 +144,23 @@ public class Engine
             if ((currentTime - _lastSpawnTime).TotalMilliseconds >= SpawnInterval && 
                 _gameObjects.Values.Count(obj => obj is EnemyObject) < MaxEnemies)
             {
-                SpawnEnemyOutsideView("Kobold.json");
+                SpawnEnemyOutsideView((x, y) => new Kobold(
+                    SpriteSheet.Load(_renderer, "Kobold.json", "Assets"), x, y, () => _player?.Position ?? (0, 0),
+                    maxHealth: 50 * _player!.Level, damage: 1 + _player.Level, speed: 50 + _player.Level));
                 _lastSpawnTime = currentTime;
             }
             
             if ((currentTime - _lastGiantSpawnTime).TotalMilliseconds >= GiantSpawnInterval)
             {
-                SpawnEnemyOutsideView("Giant.json");
+                SpawnEnemyOutsideView((x, y) => new Giant(
+                    SpriteSheet.Load(_renderer, "Giant.json", "Assets"), x, y, () => _player?.Position ?? (0, 0),
+                    maxHealth: 200 * _player!.Level, damage: 10 + _player.Level, speed: 30 + _player.Level));
                 _lastGiantSpawnTime = currentTime;
             }
         }
 
         _player.Update(msSinceLastFrame);
         _scriptEngine.ExecuteAll(this);
-
-        if (addBomb)
-        {
-            AddBomb(_player.Position.X, _player.Position.Y, false);
-        }
     }
     
     private void HandleUpgradeMenuInput(float deltaTime)
@@ -194,16 +192,14 @@ public class Engine
         }
     }
     
-    private void SpawnEnemyOutsideView(String fileName)
+    private void SpawnEnemyOutsideView(Func<int, int, EnemyObject> createEnemy)
     {
         if (_player == null) return;
 
-        var spriteSheet = SpriteSheet.Load(_renderer, fileName, "Assets");
-    
         // Get camera/view bounds
         var cameraBounds = _renderer.GetCameraBounds();
         var padding = 100; // padding to ensure enemy spawns well outside view
-    
+
         // Possible spawn areas (left, right, top, bottom of screen)
         var spawnAreas = new List<Rectangle<int>>()
         {
@@ -228,25 +224,20 @@ public class Engine
                 cameraBounds.Size.X, 
                 200) // Bottom
         };
-    
+
         // Pick a random spawn area
         var spawnArea = spawnAreas[_random.Next(spawnAreas.Count)];
-    
+
         // Random position within the spawn area
         int x = _random.Next(spawnArea.Origin.X, spawnArea.Origin.X + spawnArea.Size.X);
         int y = _random.Next(spawnArea.Origin.Y, spawnArea.Origin.Y + spawnArea.Size.Y);
-    
+
         // Ensure position is within level bounds
         x = Math.Clamp(x, 0, _currentLevel.Width.Value * _currentLevel.TileWidth.Value);
         y = Math.Clamp(y, 0, _currentLevel.Height.Value * _currentLevel.TileHeight.Value);
-    
-        var enemy = new Kobold(
-            spriteSheet,
-            x,
-            y,
-            () => _player?.Position ?? (0, 0)
-        );
-    
+
+        // Create and add the enemy using the provided factory function
+        var enemy = createEnemy(x, y);
         _gameObjects.Add(enemy.Id, enemy);
     }
 
@@ -267,7 +258,6 @@ public class Engine
                 if (enemy.CheckCollision(playerPos.X, playerPos.Y, attackRange))
                 {
                     enemy.TakeDamage(_player.Damage);
-                    Console.WriteLine($"Enemy {enemy.Id} hit by player attack. Remaining health: {enemy.Health}");
                     if (!enemy.IsAlive)
                     {
                         GemType gemType = (GemType)_random.Next(0, Enum.GetValues(typeof(GemType)).Length);
@@ -276,14 +266,14 @@ public class Engine
                         {
                             var gem = new GemObject(
                                 SpriteSheet.Load(_renderer, "HealthGem.json", "Assets"),
-                                (enemy.Position.X, enemy.Position.Y), gemType, value);
+                                (enemy.Position.X, enemy.Position.Y), gemType, (int)(value * _player.HealthMultiplier));
                             gemsToAdd.Add(gem); // Add to temporary list
                         }
                         else if (gemType == GemType.Experience)
                         {
                             var gem = new GemObject(
                                 SpriteSheet.Load(_renderer, "ExperienceGem.json", "Assets"),
-                                (enemy.Position.X, enemy.Position.Y), gemType, 1000);
+                                (enemy.Position.X, enemy.Position.Y), gemType, (int)(value * _player.ExperienceMultiplier));
                             gemsToAdd.Add(gem);
                         }
                     }
@@ -363,10 +353,10 @@ public class Engine
                                 spriteSheet,
                                 (tempGameObject.Position.X, tempGameObject.Position.Y),
                                 gemType,
-                                1000
+                                (int)(value * (gemType == GemType.Health ? _player!.HealthMultiplier : _player!.ExperienceMultiplier))
                             );
 
-                            gemsToAdd.Add(gem); // Add to temporary list
+                            gemsToAdd.Add(gem);
                         }
                     }
                 }
@@ -453,11 +443,28 @@ public class Engine
     public void AddBomb(int X, int Y, bool translateCoordinates = true)
     {
         var worldCoords = translateCoordinates ? _renderer.ToWorldCoordinates(X, Y) : new Vector2D<int>(X, Y);
+    
+        // Place main bomb
+        SpawnSingleBomb(worldCoords.X, worldCoords.Y);
 
-        SpriteSheet spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
+        // Place extra bombs if any
+        if (_player != null && _player.ExtraBombCount > 0)
+        {
+            const int spread = 16; // Distance from center
+            for (int i = 0; i < _player.ExtraBombCount; i++)
+            {
+                int offsetX = _random.Next(-spread, spread);
+                int offsetY = _random.Next(-spread, spread);
+                SpawnSingleBomb(worldCoords.X + offsetX, worldCoords.Y + offsetY);
+            }
+        }
+    }
+
+    private void SpawnSingleBomb(int x, int y)
+    {
+        var spriteSheet = SpriteSheet.Load(_renderer, "BombExploding.json", "Assets");
         spriteSheet.ActivateAnimation("Explode");
-
-        TemporaryGameObject bomb = new(spriteSheet, 2.1, (worldCoords.X, worldCoords.Y));
+        TemporaryGameObject bomb = new(spriteSheet, 2.1, (x, y));
         _gameObjects.Add(bomb.Id, bomb);
     }
     
